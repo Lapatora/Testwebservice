@@ -1,41 +1,93 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Home } from './components/Home';
 import { Login } from './components/Login';
 import { Register } from './components/Register';
 import { Dashboard } from './components/Dashboard';
-
-interface User {
-  name: string;
-  email: string;
-  bio?: string;
-  location?: string;
-}
+import { apiService, User } from './services/api';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleLogin = (email: string, password: string) => {
-    // Имитация логина
-    setUser({ name: email.split('@')[0], email });
-    setIsAuthenticated(true);
+  // Check authentication on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      // Проверяем доступность API в режиме разработки
+      if (import.meta.env.DEV) {
+        try {
+          const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+          const response = await fetch(`${apiUrl}/health`);
+          if (response.ok) {
+            console.log('✅ Backend API доступен');
+          } else {
+            console.warn(`⚠️ Backend API недоступен. Убедитесь, что сервер запущен: ${apiUrl}`);
+          }
+        } catch (error) {
+          console.error('❌ Не удалось подключиться к бэкенду:', error);
+          console.log('💡 Запустите бэкенд: cd server && npm run dev');
+        }
+      }
+
+      if (apiService.isAuthenticated()) {
+        try {
+          const response = await apiService.getCurrentUser();
+          setUser(response.user);
+          setIsAuthenticated(true);
+        } catch (error) {
+          console.error('Auth check failed:', error);
+          apiService.logout();
+          setIsAuthenticated(false);
+        }
+      }
+      setIsLoading(false);
+    };
+    checkAuth();
+  }, []);
+
+  const handleLogin = async (email: string, password: string) => {
+    try {
+      const response = await apiService.login(email, password);
+      setUser(response.user);
+      setIsAuthenticated(true);
+    } catch (error: any) {
+      throw new Error(error.message || 'Login failed');
+    }
   };
 
-  const handleRegister = (name: string, email: string, password: string) => {
-    // Имитация регистрации
-    setUser({ name, email });
-    setIsAuthenticated(true);
+  const handleRegister = async (name: string, email: string, password: string) => {
+    try {
+      const response = await apiService.register(name, email, password);
+      setUser(response.user);
+      setIsAuthenticated(true);
+    } catch (error: any) {
+      throw new Error(error.message || 'Registration failed');
+    }
   };
 
   const handleLogout = () => {
+    apiService.logout();
     setUser(null);
     setIsAuthenticated(false);
   };
 
-  const handleUpdateUser = (updatedUser: User) => {
-    setUser(updatedUser);
+  const handleUpdateUser = async (updatedUser: Partial<User>) => {
+    try {
+      const response = await apiService.updateUser(updatedUser);
+      setUser(response.user);
+    } catch (error: any) {
+      throw new Error(error.message || 'Update failed');
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#0d1117] flex items-center justify-center">
+        <div className="text-[#c9d1d9]">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <Router>

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Shield, 
   LogOut, 
@@ -26,7 +26,7 @@ import {
 interface DashboardProps {
   user: { name: string; email: string; bio?: string; location?: string } | null;
   onLogout: () => void;
-  onUpdateUser: (user: { name: string; email: string; bio?: string; location?: string }) => void;
+  onUpdateUser: (user: { name?: string; email?: string; bio?: string; location?: string }) => Promise<void>;
 }
 
 export function Dashboard({ user, onLogout, onUpdateUser }: DashboardProps) {
@@ -40,19 +40,19 @@ export function Dashboard({ user, onLogout, onUpdateUser }: DashboardProps) {
   const [editLocation, setEditLocation] = useState(user?.location || '');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Обновляем поля редактирования при изменении user
+  useEffect(() => {
+    setEditName(user?.name || '');
+    setEditEmail(user?.email || '');
+    setEditBio(user?.bio || '');
+    setEditLocation(user?.location || '');
+  }, [user]);
+
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Home },
     { id: 'analytics', label: 'Analytics', icon: Activity },
     { id: 'team', label: 'Team', icon: Users },
     { id: 'settings', label: 'Settings', icon: Settings },
-    { id: '', label: '', icon: null },
-    { id: '', label: '', icon: null },
-    { id: '', label: '', icon: null },
-    { id: '', label: '', icon: null },
-    { id: '', label: '', icon: null },
-    { id: '', label: '', icon: null },
-    { id: '', label: '', icon: null },
-    { id: '', label: '', icon: null },
   ];
 
   const stats = [
@@ -82,14 +82,20 @@ export function Dashboard({ user, onLogout, onUpdateUser }: DashboardProps) {
     { id: 4, title: 'Приглашение в команду', time: '3 часа назад', unread: false },
   ];
 
-  const handleSaveProfile = () => {
-    onUpdateUser({
-      name: editName,
-      email: editEmail,
-      bio: editBio,
-      location: editLocation,
-    });
-    setShowEditModal(false);
+  const handleSaveProfile = async () => {
+    try {
+      await onUpdateUser({
+        name: editName,
+        email: editEmail,
+        bio: editBio,
+        location: editLocation,
+      });
+      setShowEditModal(false);
+      // Обновляем локальное состояние после успешного сохранения
+      // Это будет обновлено через App.tsx
+    } catch (error: any) {
+      alert(error.message || 'Ошибка обновления профиля');
+    }
   };
 
   const handleOpenEditModal = () => {
@@ -177,17 +183,7 @@ export function Dashboard({ user, onLogout, onUpdateUser }: DashboardProps) {
 
         {/* Navigation Tabs - GitHub style */}
         <div className="px-4 flex gap-2 overflow-x-auto scrollbar-hide">
-          {tabs.map((tab, index) => {
-            if (!tab.label) {
-              return (
-                <button
-                  key={index}
-                  className="px-4 py-3 text-sm text-[#7d8590] hover:text-[#c9d1d9] hover:bg-[#30363d]/30 transition-colors border-b-2 border-transparent whitespace-nowrap"
-                >
-                  Tab {index + 1}
-                </button>
-              );
-            }
+          {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
@@ -319,155 +315,222 @@ export function Dashboard({ user, onLogout, onUpdateUser }: DashboardProps) {
             {/* Welcome Section */}
             <div className="mb-6">
               <h1 className="text-2xl text-[#c9d1d9] mb-1">
-                Welcome back, <span className="text-[#58a6ff]">{user?.name}</span>
+                {activeSection === 'dashboard' && `Welcome back, `}
+                {activeSection === 'activity' && `Activity `}
+                {activeSection === 'team' && `Team `}
+                {activeSection === 'settings' && `Settings `}
+                <span className="text-[#58a6ff]">{user?.name}</span>
               </h1>
               <p className="text-sm text-[#7d8590] flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
-                Sunday, December 7, 2025
+                {new Date().toLocaleDateString('ru-RU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               </p>
             </div>
 
-            {/* Stats Grid - GitHub style */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              {stats.map((stat, index) => {
-                const Icon = stat.icon;
-                return (
-                  <div
-                    key={index}
-                    className="bg-[#161b22] border border-[#30363d] p-4 rounded-lg hover:border-[#58a6ff] transition-colors"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="w-10 h-10 bg-[#0d1117] rounded-lg flex items-center justify-center">
-                        <Icon className="w-5 h-5 text-[#58a6ff]" />
-                      </div>
-                      <span className="text-[#3fb950] text-xs flex items-center gap-1">
-                        <TrendingUp className="w-3 h-3" />
-                        {stat.change}
-                      </span>
-                    </div>
-                    <div className="text-2xl text-[#c9d1d9] mb-1">{stat.value}</div>
-                    <div className="text-xs text-[#7d8590]">{stat.label}</div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="grid lg:grid-cols-3 gap-4">
-              {/* Projects - GitHub style */}
-              <div className="lg:col-span-2 bg-[#161b22] border border-[#30363d] rounded-lg">
-                <div className="p-4 border-b border-[#30363d] flex items-center justify-between">
-                  <h2 className="text-[#c9d1d9]">Active projects</h2>
-                  <button className="text-[#58a6ff] hover:text-[#79c0ff] text-sm flex items-center gap-1">
-                    View all
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="p-4 space-y-3">
-                  {projects.map((project, index) => (
-                    <div
-                      key={index}
-                      className="p-3 bg-[#0d1117] border border-[#30363d] rounded-md hover:border-[#58a6ff] transition-colors"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-sm text-[#c9d1d9]">{project.name}</div>
-                        <span className="text-xs px-2 py-0.5 bg-[#1f6feb]/20 text-[#58a6ff] rounded-full border border-[#1f6feb]/30">
-                          {project.status}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1">
-                          <div className="flex justify-between text-xs mb-1.5">
-                            <span className="text-[#7d8590]">Progress</span>
-                            <span className="text-[#c9d1d9]">{project.progress}%</span>
-                          </div>
-                          <div className="w-full bg-[#21262d] rounded-full h-1.5 overflow-hidden">
-                            <div 
-                              className="bg-[#58a6ff] h-1.5 rounded-full transition-all"
-                              style={{ width: `${project.progress}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Activity - GitHub style */}
-              <div className="bg-[#161b22] border border-[#30363d] rounded-lg">
-                <div className="p-4 border-b border-[#30363d]">
-                  <h2 className="text-[#c9d1d9]">Recent activity</h2>
-                </div>
-                <div className="p-4 space-y-3">
-                  {recentActivities.map((activity, index) => {
-                    const Icon = activity.icon;
+            {/* Dashboard Section */}
+            {activeSection === 'dashboard' && (
+              <>
+                {/* Stats Grid - GitHub style */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  {stats.map((stat, index) => {
+                    const Icon = stat.icon;
                     return (
                       <div
                         key={index}
-                        className="flex items-start gap-3 pb-3 border-b border-[#30363d] last:border-b-0 last:pb-0"
+                        className="bg-[#161b22] border border-[#30363d] p-4 rounded-lg hover:border-[#58a6ff] transition-colors"
                       >
-                        <div className="w-8 h-8 bg-[#0d1117] rounded-md flex items-center justify-center flex-shrink-0">
-                          <Icon className="w-4 h-4 text-[#58a6ff]" />
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="w-10 h-10 bg-[#0d1117] rounded-lg flex items-center justify-center">
+                            <Icon className="w-5 h-5 text-[#58a6ff]" />
+                          </div>
+                          <span className="text-[#3fb950] text-xs flex items-center gap-1">
+                            <TrendingUp className="w-3 h-3" />
+                            {stat.change}
+                          </span>
                         </div>
-                        <div className="flex-1">
-                          <div className="text-sm text-[#c9d1d9] mb-1">{activity.title}</div>
-                          <div className="text-xs text-[#7d8590]">{activity.time}</div>
-                        </div>
+                        <div className="text-2xl text-[#c9d1d9] mb-1">{stat.value}</div>
+                        <div className="text-xs text-[#7d8590]">{stat.label}</div>
                       </div>
                     );
                   })}
                 </div>
-              </div>
-            </div>
 
-            {/* Empty Content Blocks for Future Backend Integration */}
-            <div className="grid lg:grid-cols-2 gap-4 mt-6">
-              <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-4">
-                <h3 className="text-[#c9d1d9] mb-3">Backend Section 1</h3>
-                <p className="text-sm text-[#7d8590] mb-4">
-                  Настройте эту секцию для отображения данных с вашего бэкенда
-                </p>
-                <div className="space-y-2">
-                  <div className="h-8 bg-[#0d1117] rounded border border-[#30363d]"></div>
-                  <div className="h-8 bg-[#0d1117] rounded border border-[#30363d]"></div>
-                  <div className="h-8 bg-[#0d1117] rounded border border-[#30363d]"></div>
-                </div>
-              </div>
+                <div className="grid lg:grid-cols-3 gap-4">
+                  {/* Projects - GitHub style */}
+                  <div className="lg:col-span-2 bg-[#161b22] border border-[#30363d] rounded-lg">
+                    <div className="p-4 border-b border-[#30363d] flex items-center justify-between">
+                      <h2 className="text-[#c9d1d9]">Active projects</h2>
+                      <button className="text-[#58a6ff] hover:text-[#79c0ff] text-sm flex items-center gap-1">
+                        View all
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      {projects.map((project, index) => (
+                        <div
+                          key={index}
+                          className="p-3 bg-[#0d1117] border border-[#30363d] rounded-md hover:border-[#58a6ff] transition-colors"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="text-sm text-[#c9d1d9]">{project.name}</div>
+                            <span className="text-xs px-2 py-0.5 bg-[#1f6feb]/20 text-[#58a6ff] rounded-full border border-[#1f6feb]/30">
+                              {project.status}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1">
+                              <div className="flex justify-between text-xs mb-1.5">
+                                <span className="text-[#7d8590]">Progress</span>
+                                <span className="text-[#c9d1d9]">{project.progress}%</span>
+                              </div>
+                              <div className="w-full bg-[#21262d] rounded-full h-1.5 overflow-hidden">
+                                <div 
+                                  className="bg-[#58a6ff] h-1.5 rounded-full transition-all"
+                                  style={{ width: `${project.progress}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
-              <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-4">
-                <h3 className="text-[#c9d1d9] mb-3">Backend Section 2</h3>
-                <p className="text-sm text-[#7d8590] mb-4">
-                  Настройте эту секцию для отображения данных с вашего бэкенда
-                </p>
-                <div className="space-y-2">
-                  <div className="h-8 bg-[#0d1117] rounded border border-[#30363d]"></div>
-                  <div className="h-8 bg-[#0d1117] rounded border border-[#30363d]"></div>
-                  <div className="h-8 bg-[#0d1117] rounded border border-[#30363d]"></div>
+                  {/* Activity - GitHub style */}
+                  <div className="bg-[#161b22] border border-[#30363d] rounded-lg">
+                    <div className="p-4 border-b border-[#30363d]">
+                      <h2 className="text-[#c9d1d9]">Recent activity</h2>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      {recentActivities.map((activity, index) => {
+                        const Icon = activity.icon;
+                        return (
+                          <div
+                            key={index}
+                            className="flex items-start gap-3 pb-3 border-b border-[#30363d] last:border-b-0 last:pb-0"
+                          >
+                            <div className="w-8 h-8 bg-[#0d1117] rounded-md flex items-center justify-center flex-shrink-0">
+                              <Icon className="w-4 h-4 text-[#58a6ff]" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="text-sm text-[#c9d1d9] mb-1">{activity.title}</div>
+                              <div className="text-xs text-[#7d8590]">{activity.time}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </>
+            )}
 
-            {/* More empty sections */}
-            <div className="grid lg:grid-cols-3 gap-4 mt-6">
-              <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-4">
-                <h3 className="text-[#c9d1d9] mb-3">Section 3</h3>
-                <div className="h-32 bg-[#0d1117] rounded border border-[#30363d] flex items-center justify-center">
-                  <span className="text-[#7d8590] text-sm">Empty content block</span>
+            {/* Activity Section */}
+            {activeSection === 'activity' && (
+              <div className="space-y-4">
+                <div className="bg-[#161b22] border border-[#30363d] rounded-lg">
+                  <div className="p-4 border-b border-[#30363d]">
+                    <h2 className="text-[#c9d1d9]">All Activity</h2>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    {recentActivities.map((activity, index) => {
+                      const Icon = activity.icon;
+                      return (
+                        <div
+                          key={index}
+                          className="flex items-start gap-3 p-3 bg-[#0d1117] border border-[#30363d] rounded-md hover:border-[#58a6ff] transition-colors"
+                        >
+                          <div className="w-10 h-10 bg-[#161b22] rounded-lg flex items-center justify-center flex-shrink-0">
+                            <Icon className="w-5 h-5 text-[#58a6ff]" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm text-[#c9d1d9] mb-1">{activity.title}</div>
+                            <div className="text-xs text-[#7d8590]">{activity.time}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-              <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-4">
-                <h3 className="text-[#c9d1d9] mb-3">Section 4</h3>
-                <div className="h-32 bg-[#0d1117] rounded border border-[#30363d] flex items-center justify-center">
-                  <span className="text-[#7d8590] text-sm">Empty content block</span>
+            )}
+
+            {/* Team Section */}
+            {activeSection === 'team' && (
+              <div className="space-y-4">
+                <div className="bg-[#161b22] border border-[#30363d] rounded-lg">
+                  <div className="p-4 border-b border-[#30363d] flex items-center justify-between">
+                    <h2 className="text-[#c9d1d9]">Team Members</h2>
+                    <button className="px-3 py-1.5 bg-[#238636] text-white rounded-md hover:bg-[#2ea043] transition-colors text-sm">
+                      Add member
+                    </button>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    {[
+                      { name: 'John Doe', role: 'Developer', email: 'john@example.com' },
+                      { name: 'Jane Smith', role: 'Designer', email: 'jane@example.com' },
+                      { name: 'Bob Johnson', role: 'Manager', email: 'bob@example.com' },
+                    ].map((member, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-3 p-3 bg-[#0d1117] border border-[#30363d] rounded-md hover:border-[#58a6ff] transition-colors"
+                      >
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                          <User className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-sm text-[#c9d1d9] font-medium">{member.name}</div>
+                          <div className="text-xs text-[#7d8590]">{member.role} • {member.email}</div>
+                        </div>
+                        <button className="text-[#58a6ff] hover:text-[#79c0ff] text-sm">
+                          View
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-4">
-                <h3 className="text-[#c9d1d9] mb-3">Section 5</h3>
-                <div className="h-32 bg-[#0d1117] rounded border border-[#30363d] flex items-center justify-center">
-                  <span className="text-[#7d8590] text-sm">Empty content block</span>
+            )}
+
+            {/* Settings Section */}
+            {activeSection === 'settings' && (
+              <div className="space-y-4">
+                <div className="bg-[#161b22] border border-[#30363d] rounded-lg">
+                  <div className="p-4 border-b border-[#30363d]">
+                    <h2 className="text-[#c9d1d9]">Account Settings</h2>
+                  </div>
+                  <div className="p-4 space-y-4">
+                    <div>
+                      <label className="block text-sm text-[#c9d1d9] mb-2">Email notifications</label>
+                      <div className="flex items-center gap-2">
+                        <input type="checkbox" className="w-4 h-4 rounded border-[#30363d]" defaultChecked />
+                        <span className="text-sm text-[#7d8590]">Receive email notifications</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-[#c9d1d9] mb-2">Theme</label>
+                      <select className="w-full bg-[#0d1117] border border-[#30363d] rounded-md px-3 py-2 text-[#c9d1d9] focus:outline-none focus:border-[#58a6ff]">
+                        <option>Dark</option>
+                        <option>Light</option>
+                        <option>System</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-[#c9d1d9] mb-2">Language</label>
+                      <select className="w-full bg-[#0d1117] border border-[#30363d] rounded-md px-3 py-2 text-[#c9d1d9] focus:outline-none focus:border-[#58a6ff]">
+                        <option>Русский</option>
+                        <option>English</option>
+                      </select>
+                    </div>
+                    <div className="pt-4 border-t border-[#30363d]">
+                      <button className="px-4 py-2 bg-[#238636] text-white rounded-md hover:bg-[#2ea043] transition-colors">
+                        Save changes
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </main>
       </div>

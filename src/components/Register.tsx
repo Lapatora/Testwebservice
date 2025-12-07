@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Shield, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 
 interface RegisterProps {
-  onRegister: (name: string, email: string, password: string) => void;
+  onRegister: (name: string, email: string, password: string) => Promise<void>;
 }
 
 export function Register({ onRegister }: RegisterProps) {
@@ -16,7 +16,9 @@ export function Register({ onRegister }: RegisterProps) {
     email?: string;
     password?: string;
     confirmPassword?: string;
+    general?: string;
   }>({});
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const validateForm = () => {
@@ -55,11 +57,20 @@ export function Register({ onRegister }: RegisterProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateForm()) {
-      onRegister(name, email, password);
+    if (!validateForm()) return;
+
+    setIsLoading(true);
+    setErrors({});
+    
+    try {
+      await onRegister(name, email, password);
       navigate('/dashboard');
+    } catch (error: any) {
+      setErrors({ general: error.message || 'Ошибка регистрации. Попробуйте снова.' });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -85,6 +96,18 @@ export function Register({ onRegister }: RegisterProps) {
           <p className="text-gray-600 text-center mb-8">
             Создайте аккаунт, чтобы начать
           </p>
+
+          {errors.general && (
+            <div className="mb-4 p-4 bg-red-50 border-2 border-red-300 text-red-700 rounded-lg text-sm">
+              <div className="font-semibold mb-1">Ошибка регистрации:</div>
+              <div>{errors.general}</div>
+              {errors.general.includes('подключиться к серверу') && (
+                <div className="mt-2 text-xs text-red-600">
+                  💡 Убедитесь, что бэкенд запущен: <code className="bg-red-100 px-1 rounded">cd server && npm run dev</code>
+                </div>
+              )}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
@@ -182,9 +205,10 @@ export function Register({ onRegister }: RegisterProps) {
 
             <button
               type="submit"
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition-all"
+              disabled={isLoading}
+              className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Зарегистрироваться
+              {isLoading ? 'Регистрация...' : 'Зарегистрироваться'}
             </button>
           </form>
 
